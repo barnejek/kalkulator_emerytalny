@@ -3,498 +3,445 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Symulator Emerytalny IKE/IKZE</title>
+<title>Symulator IKE/IKZE by BP</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.1.0/dist/chartjs-plugin-annotation.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script>
-tailwind.config = {
-  theme: {
-    extend: {
-      fontFamily: {
-        display: ['Outfit', 'sans-serif'],
-        mono: ['JetBrains Mono', 'monospace'],
-      },
-      colors: {
-        bg: { 900: '#0a0e17', 800: '#111827', 700: '#1a2235' },
-        accent: { green: '#00ff87', red: '#ff3d57', blue: '#3d8bff', amber: '#ffb800', cyan: '#00e5ff' },
-      }
-    }
-  }
-}
+tailwind.config={theme:{extend:{fontFamily:{display:['DM Sans','sans-serif'],mono:['IBM Plex Mono','monospace']},colors:{surface:'#f8f9fc',panel:'#ffffff',border:'#e2e6ee',muted:'#8896ab',ink:'#1a1f2e',accent:{green:'#0d9f6e',red:'#dc2626',blue:'#2563eb',amber:'#d97706',cyan:'#0891b2'}}}}}
 </script>
 <style>
-  * { box-sizing: border-box; }
-  body { background: #0a0e17; color: #e2e8f0; font-family: 'Outfit', sans-serif; }
-  ::-webkit-scrollbar { width: 6px; }
-  ::-webkit-scrollbar-track { background: #111827; }
-  ::-webkit-scrollbar-thumb { background: #2d3748; border-radius: 3px; }
-
-  .glass { background: rgba(17, 24, 39, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.06); }
-  .glow-green { box-shadow: 0 0 20px rgba(0,255,135,0.15), inset 0 1px 0 rgba(255,255,255,0.05); }
-  .glow-red { box-shadow: 0 0 20px rgba(255,61,87,0.15), inset 0 1px 0 rgba(255,255,255,0.05); }
-
-  input[type=range] { -webkit-appearance: none; appearance: none; height: 6px; border-radius: 3px; background: #1a2235; outline: none; }
-  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 20px; height: 20px; border-radius: 50%; cursor: pointer; border: 2px solid #00ff87; background: #0a0e17; transition: box-shadow 0.2s; }
-  input[type=range]::-webkit-slider-thumb:hover { box-shadow: 0 0 12px rgba(0,255,135,0.5); }
-  input[type=range]::-moz-range-thumb { width: 20px; height: 20px; border-radius: 50%; cursor: pointer; border: 2px solid #00ff87; background: #0a0e17; }
-
-  .input-field { background: #0d1320; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 10px 14px; color: #e2e8f0; font-family: 'JetBrains Mono', monospace; font-size: 14px; width: 100%; transition: border-color 0.2s; }
-  .input-field:focus { outline: none; border-color: #00ff87; box-shadow: 0 0 0 2px rgba(0,255,135,0.15); }
-
-  .radio-btn { cursor: pointer; padding: 8px 18px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.08); transition: all 0.2s; font-size: 14px; }
-  .radio-btn.active { border-color: #00ff87; background: rgba(0,255,135,0.1); color: #00ff87; }
-  .radio-btn:not(.active):hover { border-color: rgba(255,255,255,0.2); }
-
-  .stat-card { position: relative; overflow: hidden; }
-  .stat-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; }
-  .stat-card.green::before { background: linear-gradient(90deg, transparent, #00ff87, transparent); }
-  .stat-card.red::before { background: linear-gradient(90deg, transparent, #ff3d57, transparent); }
-  .stat-card.blue::before { background: linear-gradient(90deg, transparent, #3d8bff, transparent); }
-  .stat-card.amber::before { background: linear-gradient(90deg, transparent, #ffb800, transparent); }
-
-  .btn-simulate {
-    position: relative; overflow: hidden; padding: 14px 28px; border-radius: 10px; font-weight: 700; font-size: 16px;
-    background: linear-gradient(135deg, #00ff87 0%, #00e5ff 100%); color: #0a0e17; border: none; cursor: pointer;
-    transition: transform 0.15s, box-shadow 0.25s; letter-spacing: 0.5px;
-  }
-  .btn-simulate:hover { transform: translateY(-1px); box-shadow: 0 8px 30px rgba(0,255,135,0.3); }
-  .btn-simulate:active { transform: translateY(0); }
-  .btn-simulate .ripple { position: absolute; border-radius: 50%; background: rgba(255,255,255,0.3); transform: scale(0); animation: rippleAnim 0.6s ease-out; }
-  @keyframes rippleAnim { to { transform: scale(4); opacity: 0; } }
-
-  .fade-in { animation: fadeIn 0.5s ease-out; }
-  @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-
-  .grid-bg {
-    background-image: radial-gradient(rgba(255,255,255,0.03) 1px, transparent 1px);
-    background-size: 24px 24px;
-  }
-
-  .section-label { font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: #64748b; font-family: 'JetBrains Mono', monospace; }
-
-  .crash-marker { position: absolute; z-index: 10; }
+*{box-sizing:border-box}
+body{background:#f0f2f7;color:#1a1f2e;font-family:'DM Sans',sans-serif}
+::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:#f0f2f7}::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:3px}
+.card{background:#fff;border:1px solid #e2e6ee;border-radius:14px;box-shadow:0 1px 3px rgba(0,0,0,0.04)}
+input[type=range]{-webkit-appearance:none;appearance:none;height:5px;border-radius:3px;background:#e2e6ee;outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:18px;height:18px;border-radius:50%;cursor:pointer;border:2px solid #0d9f6e;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,0.15);transition:box-shadow .2s}
+input[type=range]::-webkit-slider-thumb:hover{box-shadow:0 0 0 4px rgba(13,159,110,0.15)}
+input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;cursor:pointer;border:2px solid #0d9f6e;background:#fff}
+.input-field{background:#f8f9fc;border:1px solid #e2e6ee;border-radius:8px;padding:9px 13px;color:#1a1f2e;font-family:'IBM Plex Mono',monospace;font-size:14px;width:100%;transition:border-color .2s}
+.input-field:focus{outline:none;border-color:#0d9f6e;box-shadow:0 0 0 3px rgba(13,159,110,0.1)}
+.radio-btn{cursor:pointer;padding:7px 16px;border-radius:6px;border:1px solid #e2e6ee;transition:all .2s;font-size:13px;font-weight:500;color:#64748b}
+.radio-btn.active{border-color:#0d9f6e;background:rgba(13,159,110,0.08);color:#0d9f6e}
+.radio-btn:not(.active):hover{border-color:#cbd5e1;color:#475569}
+.stat-card{position:relative;overflow:hidden}
+.stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:14px 14px 0 0}
+.stat-card.green::before{background:linear-gradient(90deg,#0d9f6e,#10b981)}
+.stat-card.red::before{background:linear-gradient(90deg,#dc2626,#ef4444)}
+.stat-card.blue::before{background:linear-gradient(90deg,#2563eb,#3b82f6)}
+.stat-card.amber::before{background:linear-gradient(90deg,#d97706,#f59e0b)}
+.btn-sim{position:relative;overflow:hidden;padding:13px 24px;border-radius:10px;font-weight:700;font-size:15px;background:linear-gradient(135deg,#0d9f6e,#0891b2);color:#fff;border:none;cursor:pointer;transition:transform .12s,box-shadow .25s;letter-spacing:.3px}
+.btn-sim:hover{transform:translateY(-1px);box-shadow:0 6px 24px rgba(13,159,110,0.25)}
+.btn-sim:active{transform:translateY(0)}
+.fade-in{animation:fadeIn .45s ease-out}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.section-label{font-size:10px;text-transform:uppercase;letter-spacing:1.8px;color:#8896ab;font-family:'IBM Plex Mono',monospace;font-weight:500}
+.geek-toggle{cursor:pointer;user-select:none}
+.geek-content{max-height:0;overflow:hidden;transition:max-height .4s ease}
+.geek-content.open{max-height:2000px}
 </style>
 </head>
-<body class="min-h-screen grid-bg">
+<body class="min-h-screen">
 
-<!-- Header -->
-<header class="px-6 py-5 flex items-center justify-between border-b border-white/5">
+<header class="px-6 py-4 flex items-center justify-between bg-white border-b border-border">
   <div class="flex items-center gap-3">
     <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-accent-green to-accent-cyan flex items-center justify-center">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0a0e17" stroke-width="2.5" stroke-linecap="round"><path d="M12 2v20M2 12h20"/><circle cx="12" cy="12" r="10"/></svg>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
     </div>
-    <h1 class="font-display font-800 text-lg tracking-tight">Symulator <span class="text-accent-green">IKE</span>/<span class="text-accent-cyan">IKZE</span></h1>
+    <h1 class="font-display font-bold text-lg tracking-tight">Symulator <span class="text-accent-green">IKE/IKZE</span> <span class="text-muted font-normal text-sm">by BP</span></h1>
   </div>
-  <span class="section-label hidden sm:block">Monte Carlo × Finanse Behawioralne</span>
+  <span class="section-label hidden sm:block">Monte Carlo · Finanse Behawioralne</span>
 </header>
 
-<!-- Main -->
-<main class="max-w-[1440px] mx-auto px-4 py-6 lg:px-8 lg:py-8">
-  <div class="grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-6">
+<main class="max-w-[1500px] mx-auto px-4 py-6 lg:px-8">
+<div class="grid grid-cols-1 lg:grid-cols-[400px_1fr] gap-6">
 
-    <!-- LEFT: Controls -->
-    <aside class="space-y-5">
-
-      <!-- Age & Gender -->
-      <div class="glass rounded-xl p-5 space-y-4">
-        <p class="section-label">Dane osobowe</p>
-        <div>
-          <label class="text-sm text-slate-400 mb-1 block">Twój wiek</label>
-          <input type="number" id="age" value="35" min="18" max="64" class="input-field w-28" />
-        </div>
-        <div>
-          <label class="text-sm text-slate-400 mb-2 block">Płeć</label>
-          <div class="flex gap-2">
-            <div class="radio-btn active" data-gender="M" onclick="setGender(this)">Mężczyzna</div>
-            <div class="radio-btn" data-gender="F" onclick="setGender(this)">Kobieta</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Current Balances -->
-      <div class="glass rounded-xl p-5 space-y-4">
-        <p class="section-label">Obecne saldo (opcjonalne)</p>
-        <div>
-          <label class="text-sm text-slate-400 mb-1 block">Saldo IKE (PLN)</label>
-          <input type="number" id="ikeBalance" value="0" min="0" step="1000" class="input-field" />
-        </div>
-        <div>
-          <label class="text-sm text-slate-400 mb-1 block">Saldo IKZE (PLN)</label>
-          <input type="number" id="ikzeBalance" value="0" min="0" step="1000" class="input-field" />
-        </div>
-      </div>
-
-      <!-- Contribution % -->
-      <div class="glass rounded-xl p-5 space-y-3">
-        <p class="section-label">Wpłaty roczne</p>
-        <label class="text-sm text-slate-400 block">% rocznego limitu IKE+IKZE</label>
-        <div class="flex items-center gap-4">
-          <input type="range" id="contribPct" min="10" max="100" value="80" step="5" class="flex-1" oninput="updateContribLabel()" />
-          <span id="contribLabel" class="font-mono text-accent-green font-bold text-lg min-w-[48px] text-right">80%</span>
-        </div>
-        <p class="text-xs text-slate-500 mt-1">Limity 2024: IKE 23 472 PLN · IKZE 9 388,80 PLN — rosną ~4%/rok</p>
-      </div>
-
-      <!-- Risk -->
-      <div class="glass rounded-xl p-5 space-y-3">
-        <p class="section-label">Profil ryzyka</p>
-        <label class="text-sm text-slate-400 block">Udział akcji w portfelu</label>
-        <div class="flex items-center gap-4">
-          <input type="range" id="riskPct" min="0" max="100" value="60" step="5" class="flex-1" oninput="updateRiskLabel()" />
-          <span id="riskLabel" class="font-mono text-accent-cyan font-bold text-lg min-w-[48px] text-right">60%</span>
-        </div>
-        <div class="flex justify-between text-xs text-slate-500 mt-1">
-          <span>100% obligacje</span>
-          <span>100% akcje</span>
-        </div>
-      </div>
-
-      <!-- Simulate Button -->
-      <button class="btn-simulate w-full" onclick="runSimulation(this)">
-        ▶&nbsp; Symuluj losowy scenariusz
-      </button>
-      <p class="text-center text-xs text-slate-600">Każde kliknięcie generuje nową ścieżkę Monte Carlo</p>
-
-    </aside>
-
-    <!-- RIGHT: Chart + Stats -->
-    <section class="space-y-5">
-
-      <!-- Chart Container -->
-      <div class="glass rounded-xl p-4 lg:p-6 relative">
-        <div class="flex items-center justify-between mb-3">
-          <p class="section-label">Projekcja wartości portfela</p>
-          <div id="legendCustom" class="flex flex-wrap gap-x-4 gap-y-1 text-xs"></div>
-        </div>
-        <div class="relative" style="height: 420px;">
-          <canvas id="mainChart"></canvas>
-        </div>
-        <div id="crashBadge" class="hidden absolute top-14 right-8 bg-red-900/60 border border-red-500/40 rounded-lg px-3 py-2 text-xs font-mono text-red-300 fade-in max-w-[220px] text-center"></div>
-      </div>
-
-      <!-- Stats Cards -->
-      <div id="statsGrid" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <!-- populated by JS -->
-      </div>
-
-      <!-- Explanation -->
-      <div id="explanationBox" class="glass rounded-xl p-5 hidden">
-        <p class="section-label mb-2">Co się stało?</p>
-        <p id="explanationText" class="text-sm text-slate-400 leading-relaxed"></p>
-      </div>
-
-    </section>
+<!-- LEFT -->
+<aside class="space-y-4">
+  <div class="card p-5 space-y-4">
+    <p class="section-label">Dane osobowe</p>
+    <div><label class="text-sm text-muted mb-1 block">Twój wiek</label><input type="number" id="age" value="35" min="18" max="64" class="input-field w-28"/></div>
+    <div><label class="text-sm text-muted mb-2 block">Płeć (wiek emerytalny: K=60, M=65)</label>
+      <div class="flex gap-2"><div class="radio-btn active" data-gender="M" onclick="setRadio('gender',this)">Mężczyzna</div><div class="radio-btn" data-gender="F" onclick="setRadio('gender',this)">Kobieta</div></div>
+    </div>
   </div>
+
+  <div class="card p-5 space-y-4">
+    <p class="section-label">Obecne saldo (opcjonalne)</p>
+    <div><label class="text-sm text-muted mb-1 block">Saldo IKE (PLN)</label><input type="number" id="ikeBalance" value="0" min="0" step="1000" class="input-field"/></div>
+    <div><label class="text-sm text-muted mb-1 block">Saldo IKZE (PLN)</label><input type="number" id="ikzeBalance" value="0" min="0" step="1000" class="input-field"/></div>
+  </div>
+
+  <div class="card p-5 space-y-4">
+    <p class="section-label">Wpłaty</p>
+    <div><label class="text-sm text-muted mb-2 block">Forma zatrudnienia (limit IKZE)</label>
+      <div class="flex gap-2"><div class="radio-btn active" data-emp="uop" onclick="setRadio('emp',this)">UoP</div><div class="radio-btn" data-emp="dg" onclick="setRadio('emp',this)">Działalność</div></div>
+    </div>
+    <div><label class="text-sm text-muted mb-2 block">Tryb wpłat</label>
+      <div class="flex gap-2"><div class="radio-btn active" data-freq="annual" onclick="setRadio('freq',this)">Raz w roku</div><div class="radio-btn" data-freq="monthly" onclick="setRadio('freq',this)">Co miesiąc</div></div>
+    </div>
+    <div>
+      <label class="text-sm text-muted block">% rocznego limitu IKE+IKZE</label>
+      <div class="flex items-center gap-4 mt-1"><input type="range" id="contribPct" min="10" max="100" value="80" step="5" class="flex-1" oninput="updLabel('contribPct','contribLbl','%')"/><span id="contribLbl" class="font-mono text-accent-green font-semibold text-lg min-w-[44px] text-right">80%</span></div>
+      <p id="limitInfo" class="text-xs text-muted mt-2"></p>
+    </div>
+  </div>
+
+  <div class="card p-5 space-y-3">
+    <p class="section-label">Profil ryzyka</p>
+    <label class="text-sm text-muted block">Udział akcji w portfelu</label>
+    <div class="flex items-center gap-4"><input type="range" id="riskPct" min="0" max="100" value="60" step="5" class="flex-1" oninput="updLabel('riskPct','riskLbl','%')"/><span id="riskLbl" class="font-mono text-accent-blue font-semibold text-lg min-w-[44px] text-right">60%</span></div>
+    <div class="flex justify-between text-xs text-muted"><span>100% obligacje</span><span>100% akcje</span></div>
+  </div>
+
+  <button class="btn-sim w-full" onclick="runSim()">▶&ensp;Symuluj losowy scenariusz</button>
+  <p class="text-center text-[11px] text-muted">Każde kliknięcie = nowa ścieżka Monte Carlo</p>
+</aside>
+
+<!-- RIGHT -->
+<section class="space-y-5">
+  <div class="card p-4 lg:p-6 relative">
+    <div class="flex items-center justify-between mb-2">
+      <p class="section-label">Projekcja wartości portfela (krok tygodniowy)</p>
+      <div id="legend" class="flex flex-wrap gap-x-4 gap-y-1 text-[11px] font-medium text-muted"></div>
+    </div>
+    <div class="relative" style="height:440px"><canvas id="chart"></canvas></div>
+  </div>
+
+  <div id="crisisBox" class="card p-5 hidden border-l-4 border-accent-red">
+    <div class="flex items-start gap-3">
+      <span class="text-2xl">⚡</span>
+      <div><p id="crisisTitle" class="font-bold text-base text-accent-red"></p><p id="crisisDesc" class="text-sm text-ink/70 mt-1"></p></div>
+    </div>
+  </div>
+
+  <div id="statsGrid" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4"></div>
+
+  <div id="explBox" class="card p-5 hidden">
+    <p class="section-label mb-2">Lekcja z tego scenariusza</p>
+    <p id="explText" class="text-sm text-ink/60 leading-relaxed"></p>
+  </div>
+
+  <!-- FOR GEEKS -->
+  <div class="card p-5">
+    <div class="geek-toggle flex items-center justify-between" onclick="toggleGeek()">
+      <p class="section-label mb-0">🤓 Dla geeków — model i parametry</p>
+      <svg id="geekChevron" class="w-4 h-4 text-muted transition-transform duration-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+    </div>
+    <div id="geekContent" class="geek-content">
+      <div class="mt-4 text-sm text-ink/60 leading-relaxed space-y-3 font-display">
+        <p><strong class="text-ink/80">Model:</strong> Geometryczny Ruch Browna (Geometric Brownian Motion) z krokiem tygodniowym (<em>dt</em> = 1/52 roku).</p>
+        <p>Wartość portfela w kroku <em>t+1</em>:</p>
+        <div class="bg-surface rounded-lg p-3 font-mono text-xs overflow-x-auto border border-border leading-relaxed">
+V(t+1) = V(t) · exp[ (μ<sub>p</sub> − σ<sub>p</sub>²/2) · dt + σ<sub>p</sub> · √dt · Z ] + C(t)
+        </div>
+        <p>gdzie <em>Z ~ N(0,1)</em> generowane metodą Boxa-Mullera, a <em>C(t)</em> to wpłata w danym tygodniu (o ile przypada na harmonogram).</p>
+        <p><strong class="text-ink/80">Parametry klas aktywów:</strong></p>
+        <table class="w-full text-xs font-mono mt-1 border-collapse">
+          <thead><tr class="border-b border-border text-left text-muted"><th class="py-1.5 pr-4">Klasa</th><th class="py-1.5 pr-4">μ (roczne)</th><th class="py-1.5 pr-4">σ (roczne)</th><th class="py-1.5">Proxy</th></tr></thead>
+          <tbody>
+            <tr class="border-b border-border/50"><td class="py-1.5 pr-4">Akcje</td><td class="py-1.5 pr-4">8,0%</td><td class="py-1.5 pr-4">16,0%</td><td class="py-1.5">MSCI World</td></tr>
+            <tr><td class="py-1.5 pr-4">Obligacje</td><td class="py-1.5 pr-4">3,0%</td><td class="py-1.5 pr-4">5,0%</td><td class="py-1.5">Bloomberg Global Agg</td></tr>
+          </tbody>
+        </table>
+        <p><strong class="text-ink/80">Portfel mieszany:</strong></p>
+        <div class="bg-surface rounded-lg p-3 font-mono text-xs overflow-x-auto border border-border leading-relaxed">
+μ<sub>p</sub> = w · μ<sub>s</sub> + (1−w) · μ<sub>b</sub><br>
+σ<sub>p</sub> = √( w²·σ<sub>s</sub>² + (1−w)²·σ<sub>b</sub>² + 2·w·(1−w)·ρ·σ<sub>s</sub>·σ<sub>b</sub> )<br>
+ρ (korelacja akcje/obligacje) = 0,2
+        </div>
+        <p><strong class="text-ink/80">Inne założenia:</strong></p>
+        <ul class="list-disc list-inside text-xs space-y-1 ml-1">
+          <li>Inflacja: 3% rocznie (stała)</li>
+          <li>Wzrost limitów IKE/IKZE: 4% rocznie (proxy wzrost wynagrodzeń)</li>
+          <li>Limity bazowe (2025): IKE 28 260 PLN, IKZE 11 304 PLN (UoP) / 16 956 PLN (DG)</li>
+          <li>Wiek emerytalny: K=60, M=65</li>
+          <li>Wpłaty miesięczne: 1/12 rocznego limitu na początku każdego miesiąca</li>
+          <li>Wpłaty roczne: pełna kwota na początku roku</li>
+        </ul>
+        <p><strong class="text-ink/80">Scenariusz paniki (behawioralny):</strong></p>
+        <ol class="list-decimal list-inside text-xs space-y-1 ml-1">
+          <li>Algorytm znajduje Maximum Drawdown (MDD) — największy spadek peak-to-trough w całej ścieżce</li>
+          <li>W punkcie dna (trough) inwestor sprzedaje 100% portfela → gotówka</li>
+          <li>Przez 52 tygodnie (1 rok): 0% zwrotu, 0 wpłat</li>
+          <li>Po roku: powrót do rynku z tym samym profilem ryzyka, kontynuacja wpłat</li>
+          <li>Stopy zwrotu po powrocie = te same co ścieżka bazowa (ten sam rynek)</li>
+        </ol>
+        <p class="text-muted text-[11px] mt-2 pt-2 border-t border-border">Symulacja edukacyjna. Wyniki nie stanowią prognozy ani rekomendacji inwestycyjnej. Każde uruchomienie generuje nową losową ścieżkę — rozrzut wyników jest cechą, nie błędem.</p>
+      </div>
+    </div>
+  </div>
+</section>
+</div>
 </main>
 
-<footer class="text-center py-6 text-xs text-slate-600 border-t border-white/5">
-  Symulacja edukacyjna · Wyniki nie stanowią prognozy · Parametry: akcje μ=8% σ=16%, obligacje μ=3% σ=5%, inflacja 3%
+<footer class="text-center py-5 text-[11px] text-muted border-t border-border bg-white mt-6">
+  Symulator IKE/IKZE by BP · Symulacja edukacyjna · Nie stanowi rekomendacji inwestycyjnej
 </footer>
 
 <script>
-// ─── CONFIG ─────────────────────────────────────
-const STOCK_MU = 0.08, STOCK_SIGMA = 0.16;
-const BOND_MU = 0.03, BOND_SIGMA = 0.05;
-const INFLATION = 0.03;
-const LIMIT_GROWTH = 0.04;
-const IKE_LIMIT_2024 = 23472;
-const IKZE_LIMIT_2024 = 9388.80;
-const RETIRE_M = 65, RETIRE_F = 60;
+// ═════════════════════════════════════════
+// CONFIG
+// ═════════════════════════════════════════
+const S_MU=.08,S_SIG=.16,B_MU=.03,B_SIG=.05,RHO=.2,INFL=.03,LIM_GR=.04;
+const IKE_LIM=28260,IKZE_UOP=11304,IKZE_DG=16956;
+const WPY=52; // weeks per year
 
-let gender = 'M';
-let chart = null;
+let gender='M',emp='uop',freq='annual',chart=null;
 
-// ─── HELPERS ────────────────────────────────────
-function setGender(el) {
-  document.querySelectorAll('.radio-btn').forEach(b => b.classList.remove('active'));
+// ═════════════════════════════════════════
+// CRISIS STORIES
+// ═════════════════════════════════════════
+const CRISES=[
+{n:"Kryzys Surowcowy",d:"Przełom w fuzji termojądrowej wywołał panikę na rynku ropy i gazu. Indeksy surowcowe runęły, pociągając rynki akcji."},
+{n:"Cyberatak na SWIFT",d:"Skoordynowany atak hakerski sparaliżował globalny system płatności na 72h. Rynki zareagowały gwałtowną wyprzedażą."},
+{n:"Pęknięcie Bańki AI",d:"Rewizja prognoz przychodów z AI przez Big Tech doprowadziła do pęknięcia bańki wycen. Nasdaq stracił 35% w 6 tygodni."},
+{n:"Kryzys Tajwański",d:"Eskalacja w Cieśninie Tajwańskiej zamroziła łańcuchy dostaw półprzewodników. Rynki azjatyckie pociągnęły w dół świat."},
+{n:"Flash Crash Algorytmiczny",d:"Kaskadowy błąd w systemach HFT wywołał błyskawiczny krach — indeksy spadły 12% w jedną sesję."},
+{n:"Kryzys Nieruchomości 2.0",d:"Bańka na rynku nieruchomości komercyjnych pękła po fali defaultów REIT-ów. Sektor bankowy pod presją."},
+{n:"Pandemia H5N1",d:"Nowy szczep grypy ptasiej rozpoczął transmisję międzyludzką. WHO ogłosiło pandemię — déjà vu z 2020 roku."},
+{n:"Kryzys Długu Europejskiego",d:"Włochy i Francja przekroczyły krytyczne progi zadłużenia. Spready eksplodowały, euro pod presją."},
+{n:"Szok Stóp Procentowych",d:"Fed podniósł stopy o 100 bps w reakcji na powrót inflacji. Obligacje i growth stocks w głębokiej korekcie."},
+{n:"Kaskada Klimatyczna",d:"Seria katastrof naturalnych w jednym kwartale spowodowała rekordowe straty ubezpieczycieli i spadek na giełdach."},
+{n:"Upadek Crypto-Banku",d:"Trzeci co do wielkości bank w USA ogłosił niewypłacalność z powodu ekspozycji na kryptoaktywa. Efekt domina."},
+{n:"Wojna Handlowa 2.0",d:"Eskalacja ceł między USA, Chinami i UE doprowadziła do załamania handlu światowego. PMI w recesji globalnej."},
+{n:"Kryzys Rynków Wschodzących",d:"Odpływ kapitału z EM po umocnieniu dolara — kaskada dewaluacji walut i defaultów suwerennych."},
+{n:"Bańka SPAC",d:"Fala bankructw spółek przejętych przez SPAC-i ujawniła systemowe problemy z due diligence."},
+{n:"Kryzys Wodny",d:"Niedobór wody w kluczowych regionach rolniczych wywołał panikę na rynkach żywności i napięcia geopolityczne."},
+{n:"Rewolucja Regulacyjna",d:"Skoordynowane działania G7 wymierzone w Big Tech — przymusowe podziały firm i rekordowe kary antymonopolowe."},
+{n:"Blackout Europejski",d:"Awaria sieci energetycznej dotknęła 8 krajów UE. Produkcja przemysłowa stanęła na dwa tygodnie."},
+{n:"Kryzys Litowy",d:"Zakaz eksportu litu przez Chile i Australię sparaliżował produkcję EV. Sektor automotive w odwrocie."},
+{n:"Eskalacja Bliskowschodnia",d:"Konflikt zamknął Cieśninę Ormuz. Ropa powyżej 200 USD/bbl, globalny szok podażowy."},
+{n:"Afera Księgowa FinTech",d:"Masowe oszustwa księgowe w sektorze fintech podważyły zaufanie do branży. Fala pozwów zbiorowych."},
+{n:"Kryzys Emerytalny",d:"Upadek dużego funduszu emerytalnego ujawnił systemowe niedofinansowanie. Obligacje korporacyjne w panice."},
+{n:"Pęknięcie Bańki ETF",d:"Masowe umorzenia z największych ETF-ów spowodowały spiralę spadków i problemy z płynnością rynkową."},
+{n:"Szok Demograficzny",d:"Raporty ONZ o dramatycznym spadku dzietności wywołały rewizję prognoz wzrostu globalnego PKB w dół."},
+{n:"Globalny Podatek Giełdowy",d:"Wprowadzenie 25% podatku od zysków kapitałowych przez G20 wywołało masową wyprzedaż na wszystkich rynkach."},
+{n:"Kryzys Orbitalny",d:"Kolizja na orbicie zniszczyła kluczowe satelity komunikacyjne. Telco, logistyka i finanse w chaosie."},
+{n:"Upadek Stablecoina",d:"Kolejny systemowy stablecoin stracił peg — tym razem z ekspozycją banków tradycyjnych. Contagion effect."},
+{n:"Superbakteria",d:"WHO ogłosiło erę post-antybiotykową po serii nieuleczalnych infekcji szpitalnych. Healthcare pod presją."},
+{n:"Rewolta Podatkowa",d:"Masowe protesty w UE przeciwko nowym podatkom — kryzys polityczny i niestabilność rynkowa w strefie euro."},
+{n:"Burza Słoneczna",d:"Potężna burza geomagnetyczna uszkodziła infrastrukturę na północnej półkuli. Rynki zamknięte na 4 dni."},
+{n:"Kryzys Automatyzacji",d:"Masowe zwolnienia w wyniku wdrożeń AI wywołały kryzys konsumpcyjny. Popyt wewnętrzny runął w USA i UE."},
+{n:"Spirala Deflacyjna",d:"Japońska deflacja rozprzestrzeniła się na Europę. Banki centralne bezradne przy stopach na zerze."},
+{n:"Megakrach Ubezpieczeniowy",d:"Lloyd's i trzech reasekuratorów podniosło składki o 300% po kumulacji katastrof. Nieruchomości w impasie."},
+];
+
+// ═════════════════════════════════════════
+// HELPERS
+// ═════════════════════════════════════════
+function setRadio(g,el){
+  el.parentElement.querySelectorAll('.radio-btn').forEach(b=>b.classList.remove('active'));
   el.classList.add('active');
-  gender = el.dataset.gender;
+  if(g==='gender') gender=el.dataset.gender;
+  if(g==='emp'){emp=el.dataset.emp;updLimitInfo()}
+  if(g==='freq') freq=el.dataset.freq;
 }
-function updateContribLabel() {
-  document.getElementById('contribLabel').textContent = document.getElementById('contribPct').value + '%';
+function updLabel(id,lbl,suf){document.getElementById(lbl).textContent=document.getElementById(id).value+suf}
+function updLimitInfo(){
+  const ikze=emp==='dg'?IKZE_DG:IKZE_UOP;
+  document.getElementById('limitInfo').textContent=`Limity 2025: IKE ${IKE_LIM.toLocaleString('pl-PL')} · IKZE ${ikze.toLocaleString('pl-PL')} PLN — rosną ~4%/rok`;
 }
-function updateRiskLabel() {
-  document.getElementById('riskLabel').textContent = document.getElementById('riskPct').value + '%';
-}
-function fmt(v) {
-  if (Math.abs(v) >= 1e6) return (v / 1e6).toFixed(2) + ' mln';
-  return v.toLocaleString('pl-PL', { maximumFractionDigits: 0 });
-}
-function fmtPLN(v) { return fmt(v) + ' PLN'; }
+function fmt(v){if(Math.abs(v)>=1e6)return(v/1e6).toFixed(2)+' mln';return v.toLocaleString('pl-PL',{maximumFractionDigits:0})}
+function fmtPLN(v){return fmt(v)+' PLN'}
+function randn(){let u=0,v=0;while(!u)u=Math.random();while(!v)v=Math.random();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v)}
+function toggleGeek(){document.getElementById('geekContent').classList.toggle('open');document.getElementById('geekChevron').style.transform=document.getElementById('geekContent').classList.contains('open')?'rotate(180deg)':''}
 
-// Box-Muller
-function randn() {
-  let u = 0, v = 0;
-  while (u === 0) u = Math.random();
-  while (v === 0) v = Math.random();
-  return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
-}
+// ═════════════════════════════════════════
+// SIMULATION ENGINE
+// ═════════════════════════════════════════
+function runSim(){
+  const age=Math.max(18,Math.min(64,parseInt(document.getElementById('age').value)||35));
+  const retAge=gender==='M'?65:60;
+  const years=Math.max(1,retAge-age);
+  const totalW=years*WPY;
+  const cPct=parseInt(document.getElementById('contribPct').value)/100;
+  const sW=parseInt(document.getElementById('riskPct').value)/100;
+  const bW=1-sW;
+  const ike0=parseFloat(document.getElementById('ikeBalance').value)||0;
+  const ikze0=parseFloat(document.getElementById('ikzeBalance').value)||0;
+  const ikzeL=emp==='dg'?IKZE_DG:IKZE_UOP;
 
-// ─── SIMULATION ─────────────────────────────────
-function runSimulation(btn) {
-  // Ripple effect
-  const r = document.createElement('span');
-  r.className = 'ripple';
-  const rect = btn.getBoundingClientRect();
-  r.style.width = r.style.height = Math.max(rect.width, rect.height) + 'px';
-  r.style.left = '0px'; r.style.top = '0px';
-  btn.appendChild(r);
-  setTimeout(() => r.remove(), 600);
+  const mu=sW*S_MU+bW*B_MU;
+  const sigma=Math.sqrt(sW**2*S_SIG**2+bW**2*B_SIG**2+2*sW*bW*RHO*S_SIG*B_SIG);
+  const dt=1/WPY;
 
-  const age = Math.max(18, Math.min(64, parseInt(document.getElementById('age').value) || 35));
-  const retireAge = gender === 'M' ? RETIRE_M : RETIRE_F;
-  const years = Math.max(1, retireAge - age);
-  const contribPct = parseInt(document.getElementById('contribPct').value) / 100;
-  const stockW = parseInt(document.getElementById('riskPct').value) / 100;
-  const bondW = 1 - stockW;
-  const ikeStart = parseFloat(document.getElementById('ikeBalance').value) || 0;
-  const ikzeStart = parseFloat(document.getElementById('ikzeBalance').value) || 0;
+  // Month-start weeks within a year (approximate)
+  const monthWeeks=[0,4,9,13,17,22,26,30,35,39,43,48];
 
-  // Portfolio parameters (simplified — treat as single mixed asset)
-  const mu = stockW * STOCK_MU + bondW * BOND_MU;
-  const sigma = Math.sqrt(stockW ** 2 * STOCK_SIGMA ** 2 + bondW ** 2 * BOND_SIGMA ** 2 + 2 * stockW * bondW * 0.2 * STOCK_SIGMA * BOND_SIGMA);
-
-  // Generate GBM path
-  let balance = ikeStart + ikzeStart;
-  const balances = [balance];
-  const contributions = [0];
-  let cumContrib = 0;
-  const cumContribs = [0];
-  const ages = [age];
-  const yearReturns = [];
-
-  for (let y = 1; y <= years; y++) {
-    // Annual contribution = pct * (IKE limit + IKZE limit) growing at LIMIT_GROWTH
-    const ikeLimit = IKE_LIMIT_2024 * (1 + LIMIT_GROWTH) ** y;
-    const ikzeLimit = IKZE_LIMIT_2024 * (1 + LIMIT_GROWTH) ** y;
-    const annualContrib = contribPct * (ikeLimit + ikzeLimit);
-
-    // GBM return
-    const z = randn();
-    const r_y = Math.exp((mu - sigma ** 2 / 2) + sigma * z) - 1;
-    yearReturns.push(r_y);
-
-    balance = balance * (1 + r_y) + annualContrib;
-    if (balance < 0) balance = 0;
-
-    cumContrib += annualContrib;
-    balances.push(balance);
-    cumContribs.push(cumContrib);
-    contributions.push(annualContrib);
-    ages.push(age + y);
+  function isContribWeek(w){
+    if(w===0)return false;
+    const wy=w%WPY;
+    if(freq==='annual')return wy===0;
+    return monthWeeks.includes(wy);
+  }
+  function contribAmt(w){
+    const yr=Math.floor(w/WPY);
+    const ann=cPct*((IKE_LIM*(1+LIM_GR)**yr)+(ikzeL*(1+LIM_GR)**yr));
+    return freq==='annual'?ann:ann/12;
   }
 
-  // ─── MAXIMUM DRAWDOWN ─────────────────────────
-  let peak = balances[0], mddPeakIdx = 0, mddTroughIdx = 0, mddPct = 0;
-  for (let i = 1; i < balances.length; i++) {
-    if (balances[i] > peak) { peak = balances[i]; mddPeakIdx = i; }
-    const dd = (peak - balances[i]) / peak;
-    if (dd > mddPct) { mddPct = dd; mddTroughIdx = i; /* record peak idx at this point */ }
+  // Generate path
+  let bal=ike0+ikze0;
+  const V=[bal];
+  const A=[age]; // ages
+  let cumC=0;
+  const CC=[0]; // cumulative contributions
+  const wR=[]; // weekly returns
+
+  for(let w=1;w<=totalW;w++){
+    const z=randn();
+    const r=Math.exp((mu-sigma**2/2)*dt+sigma*Math.sqrt(dt)*z)-1;
+    wR.push(r);
+    bal*=(1+r);
+    if(isContribWeek(w)){const c=contribAmt(w);bal+=c;cumC+=c}
+    if(bal<0)bal=0;
+    V.push(bal);CC.push(cumC);A.push(age+w/WPY);
   }
-  // Recalculate peak for the actual MDD
-  peak = 0; let actualPeakIdx = 0;
-  for (let i = 0; i <= mddTroughIdx; i++) {
-    if (balances[i] > peak) { peak = balances[i]; actualPeakIdx = i; }
+
+  // Max Drawdown
+  let mddPct=0,troughI=0,curPk=V[0];
+  for(let i=1;i<V.length;i++){
+    if(V[i]>curPk)curPk=V[i];
+    const dd=(curPk-V[i])/curPk;
+    if(dd>mddPct){mddPct=dd;troughI=i}
   }
-  mddPeakIdx = actualPeakIdx;
 
-  // ─── PANIC PATH ───────────────────────────────
-  // Follows main path until trough, then sells to cash for 1 year, then re-enters
-  const panicPath = new Array(balances.length).fill(null);
-  let panicBalance = balances[mddTroughIdx]; // sold at bottom
-  panicPath[mddTroughIdx] = panicBalance;
+  // Panic path
+  const P=new Array(V.length).fill(null);
+  let pB=V[troughI];
+  P[troughI]=pB;
+  const reI=troughI+WPY;
 
-  if (mddTroughIdx + 1 < balances.length) {
-    // 1 year in cash — no growth, no contribution
-    panicPath[mddTroughIdx + 1] = panicBalance;
-
-    // Re-enter at year mddTroughIdx + 2 onwards
-    for (let i = mddTroughIdx + 2; i < balances.length; i++) {
-      const ikeLimit = IKE_LIMIT_2024 * (1 + LIMIT_GROWTH) ** (i);
-      const ikzeLimit = IKZE_LIMIT_2024 * (1 + LIMIT_GROWTH) ** (i);
-      const annualContrib = contribPct * (ikeLimit + ikzeLimit);
-      const r_y = yearReturns[i - 1]; // use same market returns
-      panicBalance = panicBalance * (1 + r_y) + annualContrib;
-      if (panicBalance < 0) panicBalance = 0;
-      panicPath[i] = panicBalance;
+  for(let w=troughI+1;w<V.length;w++){
+    if(w<reI){P[w]=pB}
+    else{
+      pB*=(1+wR[w-1]);
+      if(isContribWeek(w))pB+=contribAmt(w);
+      if(pB<0)pB=0;
+      P[w]=pB;
     }
   }
 
-  // ─── INFLATION-ADJUSTED CONTRIBUTION VALUE ────
-  let pvContribs = 0;
-  for (let y = 1; y <= years; y++) {
-    pvContribs += contributions[y] / (1 + INFLATION) ** y;
-  }
+  // PV of contributions
+  let pvC=0;
+  for(let w=1;w<=totalW;w++){if(isContribWeek(w)){pvC+=contribAmt(w)/Math.pow(1+INFL,w/WPY)}}
 
-  const panicCost = balances[years] - (panicPath[years] ?? balances[years]);
-  const crashYear = ages[mddTroughIdx];
+  const finalV=V[totalW];
+  const panicF=P[totalW]??finalV;
+  const pCost=finalV-panicF;
 
-  // ─── RENDER CHART ─────────────────────────────
-  renderChart(ages, balances, panicPath, cumContribs, mddTroughIdx, mddPeakIdx);
+  // Crisis
+  const cr=CRISES[Math.floor(Math.random()*CRISES.length)];
+  const crashAge=Math.floor(A[troughI]);
+  const crashCal=2025+(crashAge-age);
+  const crName=cr.n+' '+crashCal;
 
-  // ─── RENDER STATS ─────────────────────────────
-  renderStats(balances[years], cumContrib, pvContribs, panicCost, crashYear, mddPct);
+  renderChart(A,V,P,CC,troughI,crName,reI);
+  renderCrisis(crName,cr.d,mddPct,crashAge);
+  renderStats(finalV,cumC,pvC,pCost,crName);
+  renderExpl(finalV,cumC,pCost,mddPct);
+  updLimitInfo();
 }
 
-// ─── CHART ──────────────────────────────────────
-function renderChart(ages, balances, panicPath, cumContribs, troughIdx, peakIdx) {
-  const ctx = document.getElementById('mainChart').getContext('2d');
-  if (chart) chart.destroy();
+// ═════════════════════════════════════════
+// CHART
+// ═════════════════════════════════════════
+function renderChart(A,V,P,CC,trI,crName,reI){
+  const ctx=document.getElementById('chart').getContext('2d');
+  if(chart)chart.destroy();
 
-  const labels = ages.map(a => a.toString());
+  // Sample every N points for perf
+  const step=Math.max(1,Math.floor(V.length/800));
+  const lab=[],d1=[],d2=[],d3=[];
+  for(let i=0;i<V.length;i+=step){lab.push(A[i].toFixed(1));d1.push(CC[i]);d2.push(V[i]);d3.push(P[i])}
+  const last=V.length-1;
+  if((V.length-1)%step!==0){lab.push(A[last].toFixed(1));d1.push(CC[last]);d2.push(V[last]);d3.push(P[last])}
 
-  chart = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels,
-      datasets: [
-        {
-          label: 'Suma wpłat',
-          data: cumContribs,
-          borderColor: 'rgba(148,163,184,0.3)',
-          backgroundColor: 'rgba(148,163,184,0.06)',
-          fill: true,
-          borderWidth: 1.5,
-          pointRadius: 0,
-          tension: 0.3,
-          order: 3,
-        },
-        {
-          label: 'Portfel — spokojny inwestor',
-          data: balances,
-          borderColor: '#00ff87',
-          backgroundColor: 'rgba(0,255,135,0.08)',
-          fill: false,
-          borderWidth: 2.5,
-          pointRadius: 0,
-          pointHoverRadius: 5,
-          pointHoverBackgroundColor: '#00ff87',
-          tension: 0.25,
-          order: 1,
-        },
-        {
-          label: 'Portfel — panika na dnie',
-          data: panicPath,
-          borderColor: '#ff3d57',
-          borderDash: [6, 4],
-          fill: false,
-          borderWidth: 2,
-          pointRadius: 0,
-          pointHoverRadius: 5,
-          pointHoverBackgroundColor: '#ff3d57',
-          tension: 0.25,
-          spanGaps: false,
-          order: 2,
-        },
-      ],
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      interaction: { mode: 'index', intersect: false },
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          backgroundColor: 'rgba(10,14,23,0.95)',
-          borderColor: 'rgba(255,255,255,0.1)',
-          borderWidth: 1,
-          titleFont: { family: 'JetBrains Mono', size: 12 },
-          bodyFont: { family: 'JetBrains Mono', size: 11 },
-          padding: 12,
-          displayColors: true,
-          callbacks: {
-            title: items => 'Wiek: ' + items[0].label + ' lat',
-            label: item => {
-              if (item.raw === null || item.raw === undefined) return null;
-              return ' ' + item.dataset.label + ': ' + fmtPLN(item.raw);
-            }
+  const trAge=A[trI].toFixed(1);
+  const reAge=A[Math.min(reI,A.length-1)].toFixed(1);
+
+  chart=new Chart(ctx,{
+    type:'line',
+    data:{labels:lab,datasets:[
+      {label:'Suma wpłat',data:d1,borderColor:'rgba(148,163,184,0.35)',backgroundColor:'rgba(148,163,184,0.06)',fill:true,borderWidth:1.2,pointRadius:0,tension:.3,order:3},
+      {label:'Spokojny inwestor',data:d2,borderColor:'#0d9f6e',fill:false,borderWidth:2.2,pointRadius:0,pointHoverRadius:4,pointHoverBackgroundColor:'#0d9f6e',tension:.15,order:1},
+      {label:'Sprzedaż w panice',data:d3,borderColor:'#dc2626',borderDash:[5,3],fill:false,borderWidth:1.8,pointRadius:0,pointHoverRadius:4,pointHoverBackgroundColor:'#dc2626',tension:.15,spanGaps:false,order:2},
+    ]},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      interaction:{mode:'index',intersect:false},
+      plugins:{
+        legend:{display:false},
+        tooltip:{
+          backgroundColor:'rgba(255,255,255,0.97)',titleColor:'#1a1f2e',bodyColor:'#475569',borderColor:'#e2e6ee',borderWidth:1,
+          titleFont:{family:'IBM Plex Mono',size:11},bodyFont:{family:'IBM Plex Mono',size:10},padding:10,displayColors:true,
+          callbacks:{
+            title:items=>'Wiek: '+parseFloat(items[0].label).toFixed(1),
+            label:item=>{if(item.raw==null)return null;return ' '+item.dataset.label+': '+fmtPLN(item.raw)}
           }
         },
-        annotation: undefined,
+        annotation:{annotations:{
+          crash:{type:'line',scaleID:'x',value:trAge,borderColor:'rgba(220,38,38,0.55)',borderWidth:2,borderDash:[4,3],
+            label:{display:true,content:'⚡ '+crName,position:'start',backgroundColor:'rgba(220,38,38,0.9)',color:'#fff',font:{size:10,family:'DM Sans',weight:'600'},padding:{x:6,y:3},borderRadius:4}},
+          reentry:{type:'line',scaleID:'x',value:reAge,borderColor:'rgba(37,99,235,0.4)',borderWidth:1.5,borderDash:[3,3],
+            label:{display:true,content:'Powrót na rynek',position:'start',backgroundColor:'rgba(37,99,235,0.85)',color:'#fff',font:{size:9,family:'DM Sans'},padding:{x:5,y:2},borderRadius:4}},
+          zone:{type:'box',xMin:trAge,xMax:reAge,backgroundColor:'rgba(220,38,38,0.04)',borderWidth:0}
+        }}
       },
-      scales: {
-        x: {
-          title: { display: true, text: 'Wiek', color: '#64748b', font: { family: 'Outfit', size: 12 } },
-          ticks: { color: '#475569', font: { family: 'JetBrains Mono', size: 10 }, maxTicksLimit: 15 },
-          grid: { color: 'rgba(255,255,255,0.03)' },
-        },
-        y: {
-          title: { display: true, text: 'PLN', color: '#64748b', font: { family: 'Outfit', size: 12 } },
-          ticks: {
-            color: '#475569',
-            font: { family: 'JetBrains Mono', size: 10 },
-            callback: v => {
-              if (v >= 1e6) return (v / 1e6).toFixed(1) + 'M';
-              if (v >= 1e3) return (v / 1e3).toFixed(0) + 'k';
-              return v;
-            }
-          },
-          grid: { color: 'rgba(255,255,255,0.04)' },
-        }
+      scales:{
+        x:{title:{display:true,text:'Wiek',color:'#8896ab',font:{family:'DM Sans',size:12}},
+          ticks:{color:'#94a3b8',font:{family:'IBM Plex Mono',size:9},maxTicksLimit:20,
+            callback:function(v){const a=parseFloat(this.getLabelForValue(v));return Number.isInteger(a)&&a%5===0?a:''}},
+          grid:{color:'rgba(0,0,0,0.04)'}},
+        y:{title:{display:true,text:'PLN',color:'#8896ab',font:{family:'DM Sans',size:12}},
+          ticks:{color:'#94a3b8',font:{family:'IBM Plex Mono',size:9},
+            callback:v=>{if(v>=1e6)return(v/1e6).toFixed(1)+'M';if(v>=1e3)return(v/1e3).toFixed(0)+'k';return v}},
+          grid:{color:'rgba(0,0,0,0.05)'}}
       }
     }
   });
 
-  // Custom legend
-  const legendEl = document.getElementById('legendCustom');
-  legendEl.innerHTML = `
-    <span class="flex items-center gap-1"><span class="inline-block w-3 h-[3px] rounded" style="background:#00ff87"></span> Spokojny</span>
-    <span class="flex items-center gap-1"><span class="inline-block w-3 h-[3px] rounded border-dashed" style="background:#ff3d57"></span> Panika</span>
-    <span class="flex items-center gap-1"><span class="inline-block w-3 h-[3px] rounded" style="background:rgba(148,163,184,0.4)"></span> Wpłaty</span>
-  `;
-
-  // Crash badge
-  const badge = document.getElementById('crashBadge');
-  badge.classList.remove('hidden');
-  badge.className = badge.className.replace('hidden', '').trim() + ' fade-in';
-  const troughAge = ages[troughIdx];
-  badge.innerHTML = `⚡ Max drawdown: <strong>${(Math.abs(balances[troughIdx] / balances.slice(0, troughIdx + 1).reduce((a, b) => Math.max(a, b), 0) - 1) * 100).toFixed(1)}%</strong><br>w wieku ${troughAge} lat`;
+  document.getElementById('legend').innerHTML=`
+    <span class="flex items-center gap-1"><span class="inline-block w-3 h-[2px] rounded" style="background:#0d9f6e"></span>Spokojny inwestor</span>
+    <span class="flex items-center gap-1"><span class="inline-block w-3 h-[2px] rounded" style="background:#dc2626"></span>Panika na dnie</span>
+    <span class="flex items-center gap-1"><span class="inline-block w-3 h-[2px] rounded" style="background:rgba(148,163,184,0.5)"></span>Wpłaty</span>`;
 }
 
-// ─── STATS ──────────────────────────────────────
-function renderStats(finalBalance, totalContrib, pvContribs, panicCost, crashYear, mddPct) {
-  const grid = document.getElementById('statsGrid');
-  grid.innerHTML = '';
-  const cards = [
-    { color: 'green', label: 'Końcowa wartość portfela', value: fmtPLN(finalBalance), sub: 'na dzień przejścia na emeryturę' },
-    { color: 'blue', label: 'Suma wpłat nominalnych', value: fmtPLN(totalContrib), sub: 'bez uwzględnienia wzrostu' },
-    { color: 'amber', label: 'Siła nabywcza wpłat dziś', value: fmtPLN(pvContribs), sub: 'gdybyś trzymał(a) „pod materacem"' },
-    { color: 'red', label: 'Koszt paniki', value: fmtPLN(panicCost), sub: `sprzedaż na dnie w roku ~${crashYear}. roku życia` },
-  ];
-  cards.forEach(c => {
-    const div = document.createElement('div');
-    div.className = `stat-card ${c.color} glass rounded-xl p-5 fade-in`;
-    div.innerHTML = `
-      <p class="section-label mb-2">${c.label}</p>
-      <p class="font-mono font-bold text-xl lg:text-2xl text-accent-${c.color}">${c.value}</p>
-      <p class="text-xs text-slate-500 mt-1">${c.sub}</p>
-    `;
-    grid.appendChild(div);
+function renderCrisis(name,desc,mdd,crashAge){
+  const b=document.getElementById('crisisBox');b.classList.remove('hidden');b.className=b.className.replace(/fade-in/g,'')+' fade-in';
+  document.getElementById('crisisTitle').textContent=name+' — drawdown '+(mdd*100).toFixed(1)+'%';
+  document.getElementById('crisisDesc').textContent=desc+' Twój portfel osiągnął dno w okolicach '+crashAge+'. roku życia.';
+}
+
+function renderStats(fin,totC,pvC,pCost,crName){
+  const g=document.getElementById('statsGrid');g.innerHTML='';
+  [{c:'green',l:'Końcowa wartość portfela',v:fmtPLN(fin),s:'na dzień emerytury'},
+   {c:'blue',l:'Suma wpłat nominalnych',v:fmtPLN(totC),s:'bez uwzględnienia wzrostu'},
+   {c:'amber',l:'Siła nabywcza wpłat dziś',v:fmtPLN(pvC),s:'„pod materacem" — tyle byłyby warte realnie'},
+   {c:'red',l:'Koszt paniki',v:fmtPLN(pCost),s:crName}
+  ].forEach(c=>{
+    const d=document.createElement('div');d.className=`stat-card ${c.c} card p-4 fade-in`;
+    d.innerHTML=`<p class="section-label mb-1">${c.l}</p><p class="font-mono font-bold text-xl text-accent-${c.c}">${c.v}</p><p class="text-[11px] text-muted mt-1">${c.s}</p>`;
+    g.appendChild(d);
   });
-
-  // Explanation
-  const box = document.getElementById('explanationBox');
-  box.classList.remove('hidden');
-  box.classList.add('fade-in');
-  const growthMultiple = totalContrib > 0 ? (finalBalance / totalContrib).toFixed(1) : '—';
-  document.getElementById('explanationText').innerHTML = `
-    W tym scenariuszu Twoje pieniądze urosły <strong class="text-accent-green">${growthMultiple}×</strong> względem nominalnych wpłat.
-    Największy obsunięcie (max drawdown) wyniosło <strong class="text-accent-red">${(mddPct * 100).toFixed(1)}%</strong> — gdybyś wówczas spanikował(a) i sprzedał(a) wszystko,
-    straciłbyś/straciłabyś <strong class="text-accent-red">${fmtPLN(panicCost)}</strong> względem strategii „zostań w rynku".
-    To jest właśnie <em>koszt emocji</em> — największy ukryty podatek od inwestowania.
-    <br><br>
-    <span class="text-slate-500">Kliknij „Symuluj" ponownie, by zobaczyć inny losowy scenariusz. Za każdym razem rynek wygląda inaczej — ale lekcja pozostaje ta sama.</span>
-  `;
 }
 
-// ─── INIT ───────────────────────────────────────
-document.addEventListener('DOMContentLoaded', () => {
-  updateContribLabel();
-  updateRiskLabel();
-  runSimulation(document.querySelector('.btn-simulate'));
-});
+function renderExpl(fin,totC,pCost,mdd){
+  const b=document.getElementById('explBox');b.classList.remove('hidden');b.className=b.className.replace(/fade-in/g,'')+' fade-in';
+  const m=totC>0?(fin/totC).toFixed(1):'—';
+  document.getElementById('explText').innerHTML=`
+    Twoje pieniądze urosły <strong class="text-accent-green">${m}×</strong> względem wpłat nominalnych.
+    Największe obsunięcie: <strong class="text-accent-red">${(mdd*100).toFixed(1)}%</strong>.
+    Panika na dnie kosztowałaby Cię <strong class="text-accent-red">${fmtPLN(pCost)}</strong> vs strategia „zostań w rynku".
+    To <em>koszt emocji</em> — największy ukryty podatek od inwestowania.<br>
+    <span class="text-muted text-xs">Kliknij „Symuluj" ponownie — rynek za każdym razem wygląda inaczej, ale lekcja ta sama.</span>`;
+}
+
+// INIT
+document.addEventListener('DOMContentLoaded',()=>{updLimitInfo();runSim()});
 </script>
 </body>
 </html>
