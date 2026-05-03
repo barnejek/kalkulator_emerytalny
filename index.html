@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Symulator Emerytalny IKE/IKZE</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      fontFamily: {
+        display: ['Outfit', 'sans-serif'],
+        mono: ['JetBrains Mono', 'monospace'],
+      },
+      colors: {
+        bg: { 900: '#0a0e17', 800: '#111827', 700: '#1a2235' },
+        accent: { green: '#00ff87', red: '#ff3d57', blue: '#3d8bff', amber: '#ffb800', cyan: '#00e5ff' },
+      }
+    }
+  }
+}
+</script>
+<style>
+  * { box-sizing: border-box; }
+  body { background: #0a0e17; color: #e2e8f0; font-family: 'Outfit', sans-serif; }
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: #111827; }
+  ::-webkit-scrollbar-thumb { background: #2d3748; border-radius: 3px; }
+
+  .glass { background: rgba(17, 24, 39, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.06); }
+  .glow-green { box-shadow: 0 0 20px rgba(0,255,135,0.15), inset 0 1px 0 rgba(255,255,255,0.05); }
+  .glow-red { box-shadow: 0 0 20px rgba(255,61,87,0.15), inset 0 1px 0 rgba(255,255,255,0.05); }
+
+  input[type=range] { -webkit-appearance: none; appearance: none; height: 6px; border-radius: 3px; background: #1a2235; outline: none; }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 20px; height: 20px; border-radius: 50%; cursor: pointer; border: 2px solid #00ff87; background: #0a0e17; transition: box-shadow 0.2s; }
+  input[type=range]::-webkit-slider-thumb:hover { box-shadow: 0 0 12px rgba(0,255,135,0.5); }
+  input[type=range]::-moz-range-thumb { width: 20px; height: 20px; border-radius: 50%; cursor: pointer; border: 2px solid #00ff87; background: #0a0e17; }
+
+  .input-field { background: #0d1320; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 10px 14px; color: #e2e8f0; font-family: 'JetBrains Mono', monospace; font-size: 14px; width: 100%; transition: border-color 0.2s; }
+  .input-field:focus { outline: none; border-color: #00ff87; box-shadow: 0 0 0 2px rgba(0,255,135,0.15); }
+
+  .radio-btn { cursor: pointer; padding: 8px 18px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.08); transition: all 0.2s; font-size: 14px; }
+  .radio-btn.active { border-color: #00ff87; background: rgba(0,255,135,0.1); color: #00ff87; }
+  .radio-btn:not(.active):hover { border-color: rgba(255,255,255,0.2); }
+
+  .stat-card { position: relative; overflow: hidden; }
+  .stat-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; }
+  .stat-card.green::before { background: linear-gradient(90deg, transparent, #00ff87, transparent); }
+  .stat-card.red::before { background: linear-gradient(90deg, transparent, #ff3d57, transparent); }
+  .stat-card.blue::before { background: linear-gradient(90deg, transparent, #3d8bff, transparent); }
+  .stat-card.amber::before { background: linear-gradient(90deg, transparent, #ffb800, transparent); }
+
+  .btn-simulate {
+    position: relative; overflow: hidden; padding: 14px 28px; border-radius: 10px; font-weight: 700; font-size: 16px;
+    background: linear-gradient(135deg, #00ff87 0%, #00e5ff 100%); color: #0a0e17; border: none; cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.25s; letter-spacing: 0.5px;
+  }
+  .btn-simulate:hover { transform: translateY(-1px); box-shadow: 0 8px 30px rgba(0,255,135,0.3); }
+  .btn-simulate:active { transform: translateY(0); }
+  .btn-simulate .ripple { position: absolute; border-radius: 50%; background: rgba(255,255,255,0.3); transform: scale(0); animation: rippleAnim 0.6s ease-out; }
+  @keyframes rippleAnim { to { transform: scale(4); opacity: 0; } }
+
+  .fade-in { animation: fadeIn 0.5s ease-out; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+  .grid-bg {
+    background-image: radial-gradient(rgba(255,255,255,0.03) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+
+  .section-label { font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: #64748b; font-family: 'JetBrains Mono', monospace; }
+
+  .crash-marker { position: absolute; z-index: 10; }
+</style>
+</head>
+<body class="min-h-screen grid-bg">
+
+<!-- Header -->
+<header class="px-6 py-5 flex items-center justify-between border-b border-white/5">
+  <div class="flex items-center gap-3">
+    <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-accent-green to-accent-cyan flex items-center justify-center">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0a0e17" stroke-width="2.5" stroke-linecap="round"><path d="M12 2v20M2 12h20"/><circle cx="12" cy="12" r="10"/></svg>
+    </div>
+    <h1 class="font-display font-800 text-lg tracking-tight">Symulator <span class="text-accent-green">IKE</span>/<span class="text-accent-cyan">IKZE</span></h1>
+  </div>
+  <span class="section-label hidden sm:block">Monte Carlo × Finanse Behawioralne</span>
+</header>
+
+<!-- Main -->
+<main class="max-w-[1440px] mx-auto px-4 py-6 lg:px-8 lg:py-8">
+  <div class="grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-6">
+
+    <!-- LEFT: Controls -->
+    <aside class="space-y-5">
+
+      <!-- Age & Gender -->
+      <div class="glass rounded-xl p-5 space-y-4">
+        <p class="section-label">Dane osobowe</p>
+        <div>
+          <label class="text-sm text-slate-400 mb-1 block">Twój wiek</label>
+          <input type="number" id="age" value="35" min="18" max="64" class="input-field w-28" />
+        </div>
+        <div>
+          <label class="text-sm text-slate-400 mb-2 block">Płeć</label>
+          <div class="flex gap-2">
+            <div class="radio-btn active" data-gender="M" onclick="setGender(this)">Mężczyzna</div>
+            <div class="radio-btn" data-gender="F" onclick="setGender(this)">Kobieta</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Current Balances -->
+      <div class="glass rounded-xl p-5 space-y-4">
+        <p class="section-label">Obecne saldo (opcjonalne)</p>
+        <div>
+          <label class="text-sm text-slate-400 mb-1 block">Saldo IKE (PLN)</label>
+          <input type="number" id="ikeBalance" value="0" min="0" step="1000" class="input-field" />
+        </div>
+        <div>
+          <label class="text-sm text-slate-400 mb-1 block">Saldo IKZE (PLN)</label>
+          <input type="number" id="ikzeBalance" value="0" min="0" step="1000" class="input-field" />
+        </div>
+      </div>
+
+      <!-- Contribution % -->
+      <div class="glass rounded-xl p-5 space-y-3">
+        <p class="section-label">Wpłaty roczne</p>
+        <label class="text-sm text-slate-400 block">% rocznego limitu IKE+IKZE</label>
+        <div class="flex items-center gap-4">
+          <input type="range" id="contribPct" min="10" max="100" value="80" step="5" class="flex-1" oninput="updateContribLabel()" />
+          <span id="contribLabel" class="font-mono text-accent-green font-bold text-lg min-w-[48px] text-right">80%</span>
+        </div>
+        <p class="text-xs text-slate-500 mt-1">Limity 2024: IKE 23 472 PLN · IKZE 9 388,80 PLN — rosną ~4%/rok</p>
+      </div>
+
+      <!-- Risk -->
+      <div class="glass rounded-xl p-5 space-y-3">
+        <p class="section-label">Profil ryzyka</p>
+        <label class="text-sm text-slate-400 block">Udział akcji w portfelu</label>
+        <div class="flex items-center gap-4">
+          <input type="range" id="riskPct" min="0" max="100" value="60" step="5" class="flex-1" oninput="updateRiskLabel()" />
+          <span id="riskLabel" class="font-mono text-accent-cyan font-bold text-lg min-w-[48px] text-right">60%</span>
+        </div>
+        <div class="flex justify-between text-xs text-slate-500 mt-1">
+          <span>100% obligacje</span>
+          <span>100% akcje</span>
+        </div>
+      </div>
+
+      <!-- Simulate Button -->
+      <button class="btn-simulate w-full" onclick="runSimulation(this)">
+        ▶&nbsp; Symuluj losowy scenariusz
+      </button>
+      <p class="text-center text-xs text-slate-600">Każde kliknięcie generuje nową ścieżkę Monte Carlo</p>
+
+    </aside>
+
+    <!-- RIGHT: Chart + Stats -->
+    <section class="space-y-5">
+
+      <!-- Chart Container -->
+      <div class="glass rounded-xl p-4 lg:p-6 relative">
+        <div class="flex items-center justify-between mb-3">
+          <p class="section-label">Projekcja wartości portfela</p>
+          <div id="legendCustom" class="flex flex-wrap gap-x-4 gap-y-1 text-xs"></div>
+        </div>
+        <div class="relative" style="height: 420px;">
+          <canvas id="mainChart"></canvas>
+        </div>
+        <div id="crashBadge" class="hidden absolute top-14 right-8 bg-red-900/60 border border-red-500/40 rounded-lg px-3 py-2 text-xs font-mono text-red-300 fade-in max-w-[220px] text-center"></div>
+      </div>
+
+      <!-- Stats Cards -->
+      <div id="statsGrid" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        <!-- populated by JS -->
+      </div>
+
+      <!-- Explanation -->
+      <div id="explanationBox" class="glass rounded-xl p-5 hidden">
+        <p class="section-label mb-2">Co się stało?</p>
+        <p id="explanationText" class="text-sm text-slate-400 leading-relaxed"></p>
+      </div>
+
+    </section>
+  </div>
+</main>
+
+<footer class="text-center py-6 text-xs text-slate-600 border-t border-white/5">
+  Symulacja edukacyjna · Wyniki nie stanowią prognozy · Parametry: akcje μ=8% σ=16%, obligacje μ=3% σ=5%, inflacja 3%
+</footer>
+
+<script>
+// ─── CONFIG ─────────────────────────────────────
+const STOCK_MU = 0.08, STOCK_SIGMA = 0.16;
+const BOND_MU = 0.03, BOND_SIGMA = 0.05;
+const INFLATION = 0.03;
+const LIMIT_GROWTH = 0.04;
+const IKE_LIMIT_2024 = 23472;
+const IKZE_LIMIT_2024 = 9388.80;
+const RETIRE_M = 65, RETIRE_F = 60;
+
+let gender = 'M';
+let chart = null;
+
+// ─── HELPERS ────────────────────────────────────
+function setGender(el) {
+  document.querySelectorAll('.radio-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  gender = el.dataset.gender;
+}
+function updateContribLabel() {
+  document.getElementById('contribLabel').textContent = document.getElementById('contribPct').value + '%';
+}
+function updateRiskLabel() {
+  document.getElementById('riskLabel').textContent = document.getElementById('riskPct').value + '%';
+}
+function fmt(v) {
+  if (Math.abs(v) >= 1e6) return (v / 1e6).toFixed(2) + ' mln';
+  return v.toLocaleString('pl-PL', { maximumFractionDigits: 0 });
+}
+function fmtPLN(v) { return fmt(v) + ' PLN'; }
+
+// Box-Muller
+function randn() {
+  let u = 0, v = 0;
+  while (u === 0) u = Math.random();
+  while (v === 0) v = Math.random();
+  return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+}
+
+// ─── SIMULATION ─────────────────────────────────
+function runSimulation(btn) {
+  // Ripple effect
+  const r = document.createElement('span');
+  r.className = 'ripple';
+  const rect = btn.getBoundingClientRect();
+  r.style.width = r.style.height = Math.max(rect.width, rect.height) + 'px';
+  r.style.left = '0px'; r.style.top = '0px';
+  btn.appendChild(r);
+  setTimeout(() => r.remove(), 600);
+
+  const age = Math.max(18, Math.min(64, parseInt(document.getElementById('age').value) || 35));
+  const retireAge = gender === 'M' ? RETIRE_M : RETIRE_F;
+  const years = Math.max(1, retireAge - age);
+  const contribPct = parseInt(document.getElementById('contribPct').value) / 100;
+  const stockW = parseInt(document.getElementById('riskPct').value) / 100;
+  const bondW = 1 - stockW;
+  const ikeStart = parseFloat(document.getElementById('ikeBalance').value) || 0;
+  const ikzeStart = parseFloat(document.getElementById('ikzeBalance').value) || 0;
+
+  // Portfolio parameters (simplified — treat as single mixed asset)
+  const mu = stockW * STOCK_MU + bondW * BOND_MU;
+  const sigma = Math.sqrt(stockW ** 2 * STOCK_SIGMA ** 2 + bondW ** 2 * BOND_SIGMA ** 2 + 2 * stockW * bondW * 0.2 * STOCK_SIGMA * BOND_SIGMA);
+
+  // Generate GBM path
+  let balance = ikeStart + ikzeStart;
+  const balances = [balance];
+  const contributions = [0];
+  let cumContrib = 0;
+  const cumContribs = [0];
+  const ages = [age];
+  const yearReturns = [];
+
+  for (let y = 1; y <= years; y++) {
+    // Annual contribution = pct * (IKE limit + IKZE limit) growing at LIMIT_GROWTH
+    const ikeLimit = IKE_LIMIT_2024 * (1 + LIMIT_GROWTH) ** y;
+    const ikzeLimit = IKZE_LIMIT_2024 * (1 + LIMIT_GROWTH) ** y;
+    const annualContrib = contribPct * (ikeLimit + ikzeLimit);
+
+    // GBM return
+    const z = randn();
+    const r_y = Math.exp((mu - sigma ** 2 / 2) + sigma * z) - 1;
+    yearReturns.push(r_y);
+
+    balance = balance * (1 + r_y) + annualContrib;
+    if (balance < 0) balance = 0;
+
+    cumContrib += annualContrib;
+    balances.push(balance);
+    cumContribs.push(cumContrib);
+    contributions.push(annualContrib);
+    ages.push(age + y);
+  }
+
+  // ─── MAXIMUM DRAWDOWN ─────────────────────────
+  let peak = balances[0], mddPeakIdx = 0, mddTroughIdx = 0, mddPct = 0;
+  for (let i = 1; i < balances.length; i++) {
+    if (balances[i] > peak) { peak = balances[i]; mddPeakIdx = i; }
+    const dd = (peak - balances[i]) / peak;
+    if (dd > mddPct) { mddPct = dd; mddTroughIdx = i; /* record peak idx at this point */ }
+  }
+  // Recalculate peak for the actual MDD
+  peak = 0; let actualPeakIdx = 0;
+  for (let i = 0; i <= mddTroughIdx; i++) {
+    if (balances[i] > peak) { peak = balances[i]; actualPeakIdx = i; }
+  }
+  mddPeakIdx = actualPeakIdx;
+
+  // ─── PANIC PATH ───────────────────────────────
+  // Follows main path until trough, then sells to cash for 1 year, then re-enters
+  const panicPath = new Array(balances.length).fill(null);
+  let panicBalance = balances[mddTroughIdx]; // sold at bottom
+  panicPath[mddTroughIdx] = panicBalance;
+
+  if (mddTroughIdx + 1 < balances.length) {
+    // 1 year in cash — no growth, no contribution
+    panicPath[mddTroughIdx + 1] = panicBalance;
+
+    // Re-enter at year mddTroughIdx + 2 onwards
+    for (let i = mddTroughIdx + 2; i < balances.length; i++) {
+      const ikeLimit = IKE_LIMIT_2024 * (1 + LIMIT_GROWTH) ** (i);
+      const ikzeLimit = IKZE_LIMIT_2024 * (1 + LIMIT_GROWTH) ** (i);
+      const annualContrib = contribPct * (ikeLimit + ikzeLimit);
+      const r_y = yearReturns[i - 1]; // use same market returns
+      panicBalance = panicBalance * (1 + r_y) + annualContrib;
+      if (panicBalance < 0) panicBalance = 0;
+      panicPath[i] = panicBalance;
+    }
+  }
+
+  // ─── INFLATION-ADJUSTED CONTRIBUTION VALUE ────
+  let pvContribs = 0;
+  for (let y = 1; y <= years; y++) {
+    pvContribs += contributions[y] / (1 + INFLATION) ** y;
+  }
+
+  const panicCost = balances[years] - (panicPath[years] ?? balances[years]);
+  const crashYear = ages[mddTroughIdx];
+
+  // ─── RENDER CHART ─────────────────────────────
+  renderChart(ages, balances, panicPath, cumContribs, mddTroughIdx, mddPeakIdx);
+
+  // ─── RENDER STATS ─────────────────────────────
+  renderStats(balances[years], cumContrib, pvContribs, panicCost, crashYear, mddPct);
+}
+
+// ─── CHART ──────────────────────────────────────
+function renderChart(ages, balances, panicPath, cumContribs, troughIdx, peakIdx) {
+  const ctx = document.getElementById('mainChart').getContext('2d');
+  if (chart) chart.destroy();
+
+  const labels = ages.map(a => a.toString());
+
+  chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Suma wpłat',
+          data: cumContribs,
+          borderColor: 'rgba(148,163,184,0.3)',
+          backgroundColor: 'rgba(148,163,184,0.06)',
+          fill: true,
+          borderWidth: 1.5,
+          pointRadius: 0,
+          tension: 0.3,
+          order: 3,
+        },
+        {
+          label: 'Portfel — spokojny inwestor',
+          data: balances,
+          borderColor: '#00ff87',
+          backgroundColor: 'rgba(0,255,135,0.08)',
+          fill: false,
+          borderWidth: 2.5,
+          pointRadius: 0,
+          pointHoverRadius: 5,
+          pointHoverBackgroundColor: '#00ff87',
+          tension: 0.25,
+          order: 1,
+        },
+        {
+          label: 'Portfel — panika na dnie',
+          data: panicPath,
+          borderColor: '#ff3d57',
+          borderDash: [6, 4],
+          fill: false,
+          borderWidth: 2,
+          pointRadius: 0,
+          pointHoverRadius: 5,
+          pointHoverBackgroundColor: '#ff3d57',
+          tension: 0.25,
+          spanGaps: false,
+          order: 2,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: 'rgba(10,14,23,0.95)',
+          borderColor: 'rgba(255,255,255,0.1)',
+          borderWidth: 1,
+          titleFont: { family: 'JetBrains Mono', size: 12 },
+          bodyFont: { family: 'JetBrains Mono', size: 11 },
+          padding: 12,
+          displayColors: true,
+          callbacks: {
+            title: items => 'Wiek: ' + items[0].label + ' lat',
+            label: item => {
+              if (item.raw === null || item.raw === undefined) return null;
+              return ' ' + item.dataset.label + ': ' + fmtPLN(item.raw);
+            }
+          }
+        },
+        annotation: undefined,
+      },
+      scales: {
+        x: {
+          title: { display: true, text: 'Wiek', color: '#64748b', font: { family: 'Outfit', size: 12 } },
+          ticks: { color: '#475569', font: { family: 'JetBrains Mono', size: 10 }, maxTicksLimit: 15 },
+          grid: { color: 'rgba(255,255,255,0.03)' },
+        },
+        y: {
+          title: { display: true, text: 'PLN', color: '#64748b', font: { family: 'Outfit', size: 12 } },
+          ticks: {
+            color: '#475569',
+            font: { family: 'JetBrains Mono', size: 10 },
+            callback: v => {
+              if (v >= 1e6) return (v / 1e6).toFixed(1) + 'M';
+              if (v >= 1e3) return (v / 1e3).toFixed(0) + 'k';
+              return v;
+            }
+          },
+          grid: { color: 'rgba(255,255,255,0.04)' },
+        }
+      }
+    }
+  });
+
+  // Custom legend
+  const legendEl = document.getElementById('legendCustom');
+  legendEl.innerHTML = `
+    <span class="flex items-center gap-1"><span class="inline-block w-3 h-[3px] rounded" style="background:#00ff87"></span> Spokojny</span>
+    <span class="flex items-center gap-1"><span class="inline-block w-3 h-[3px] rounded border-dashed" style="background:#ff3d57"></span> Panika</span>
+    <span class="flex items-center gap-1"><span class="inline-block w-3 h-[3px] rounded" style="background:rgba(148,163,184,0.4)"></span> Wpłaty</span>
+  `;
+
+  // Crash badge
+  const badge = document.getElementById('crashBadge');
+  badge.classList.remove('hidden');
+  badge.className = badge.className.replace('hidden', '').trim() + ' fade-in';
+  const troughAge = ages[troughIdx];
+  badge.innerHTML = `⚡ Max drawdown: <strong>${(Math.abs(balances[troughIdx] / balances.slice(0, troughIdx + 1).reduce((a, b) => Math.max(a, b), 0) - 1) * 100).toFixed(1)}%</strong><br>w wieku ${troughAge} lat`;
+}
+
+// ─── STATS ──────────────────────────────────────
+function renderStats(finalBalance, totalContrib, pvContribs, panicCost, crashYear, mddPct) {
+  const grid = document.getElementById('statsGrid');
+  grid.innerHTML = '';
+  const cards = [
+    { color: 'green', label: 'Końcowa wartość portfela', value: fmtPLN(finalBalance), sub: 'na dzień przejścia na emeryturę' },
+    { color: 'blue', label: 'Suma wpłat nominalnych', value: fmtPLN(totalContrib), sub: 'bez uwzględnienia wzrostu' },
+    { color: 'amber', label: 'Siła nabywcza wpłat dziś', value: fmtPLN(pvContribs), sub: 'gdybyś trzymał(a) „pod materacem"' },
+    { color: 'red', label: 'Koszt paniki', value: fmtPLN(panicCost), sub: `sprzedaż na dnie w roku ~${crashYear}. roku życia` },
+  ];
+  cards.forEach(c => {
+    const div = document.createElement('div');
+    div.className = `stat-card ${c.color} glass rounded-xl p-5 fade-in`;
+    div.innerHTML = `
+      <p class="section-label mb-2">${c.label}</p>
+      <p class="font-mono font-bold text-xl lg:text-2xl text-accent-${c.color}">${c.value}</p>
+      <p class="text-xs text-slate-500 mt-1">${c.sub}</p>
+    `;
+    grid.appendChild(div);
+  });
+
+  // Explanation
+  const box = document.getElementById('explanationBox');
+  box.classList.remove('hidden');
+  box.classList.add('fade-in');
+  const growthMultiple = totalContrib > 0 ? (finalBalance / totalContrib).toFixed(1) : '—';
+  document.getElementById('explanationText').innerHTML = `
+    W tym scenariuszu Twoje pieniądze urosły <strong class="text-accent-green">${growthMultiple}×</strong> względem nominalnych wpłat.
+    Największy obsunięcie (max drawdown) wyniosło <strong class="text-accent-red">${(mddPct * 100).toFixed(1)}%</strong> — gdybyś wówczas spanikował(a) i sprzedał(a) wszystko,
+    straciłbyś/straciłabyś <strong class="text-accent-red">${fmtPLN(panicCost)}</strong> względem strategii „zostań w rynku".
+    To jest właśnie <em>koszt emocji</em> — największy ukryty podatek od inwestowania.
+    <br><br>
+    <span class="text-slate-500">Kliknij „Symuluj" ponownie, by zobaczyć inny losowy scenariusz. Za każdym razem rynek wygląda inaczej — ale lekcja pozostaje ta sama.</span>
+  `;
+}
+
+// ─── INIT ───────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  updateContribLabel();
+  updateRiskLabel();
+  runSimulation(document.querySelector('.btn-simulate'));
+});
+</script>
+</body>
+</html>
